@@ -21,5 +21,5 @@ def get_db():
 
 
 def init_db():
-    from backend.models import TimeEntry, Project  # noqa: F401
+    from backend.models import TimeEntry, Project, Worker, Expense  # noqa: F401
     Base.metadata.create_all(bind=engine)

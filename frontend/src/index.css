@@ -157,16 +157,17 @@ body::before {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 6px 16px;
+  padding: 6px 10px;
   border-radius: 12px;
   border: none;
   background: none;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   font-family: var(--font-sans);
+  min-width: 0;
 }
 .nav-item:hover { color: var(--text-secondary); }
 .nav-item.active {
@@ -559,6 +560,16 @@ body::before {
 }
 .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.5; }
 .empty-state p { font-size: 15px; }
+
+/* ── Footer credit ── */
+.app-footer {
+  text-align: center;
+  padding: 16px 20px calc(80px + var(--safe-bottom));
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  opacity: 0.7;
+}
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; }

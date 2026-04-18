@@ -12,6 +12,19 @@ async function request(path, opts = {}) {
   return res.json();
 }
 
+// Workers
+export const getWorkers = (activeOnly = true) =>
+  request(`/workers/?active_only=${activeOnly}`);
+
+export const createWorker = (data) =>
+  request('/workers/', { method: 'POST', body: JSON.stringify(data) });
+
+export const updateWorker = (id, data) =>
+  request(`/workers/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteWorker = (id) =>
+  request(`/workers/${id}`, { method: 'DELETE' });
+
 // Projects
 export const getProjects = (activeOnly = true) =>
   request(`/projects/?active_only=${activeOnly}`);
@@ -42,6 +55,26 @@ export const updateEntry = (id, data) =>
 
 export const deleteEntry = (id) =>
   request(`/entries/${id}`, { method: 'DELETE' });
+
+// Expenses
+export const getExpenseCategories = () => request('/expenses/categories');
+
+export const getExpenses = (params = {}) => {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') qs.set(k, v);
+  });
+  return request(`/expenses/?${qs}`);
+};
+
+export const createExpense = (data) =>
+  request('/expenses/', { method: 'POST', body: JSON.stringify(data) });
+
+export const updateExpense = (id, data) =>
+  request(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteExpense = (id) =>
+  request(`/expenses/${id}`, { method: 'DELETE' });
 
 // Excel
 export const exportExcel = async (params = {}) => {

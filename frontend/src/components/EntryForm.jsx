@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useI18n } from '../i18n';
 
-export default function EntryForm({ entry, projects, onSave, onCancel, onDelete }) {
+export default function EntryForm({ entry, projects, workers, onSave, onCancel, onDelete }) {
   const { t } = useI18n();
   const isEdit = !!entry?.id;
 
@@ -15,10 +15,14 @@ export default function EntryForm({ entry, projects, onSave, onCancel, onDelete 
     notes: entry?.notes || '',
   });
 
+  const [customWorker, setCustomWorker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  // Check if the current worker_name matches a saved worker
+  const workerInList = workers.some(w => w.name === form.worker_name);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,8 +43,42 @@ export default function EntryForm({ entry, projects, onSave, onCancel, onDelete 
     <form onSubmit={handleSubmit}>
       <div className="form-group">
         <label className="form-label">{t('workerName')}</label>
-        <input className="form-input" value={form.worker_name}
-          onChange={e => set('worker_name', e.target.value)} required placeholder="John Doe" />
+        {!customWorker && workers.length > 0 ? (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select
+              className="form-select"
+              value={workerInList ? form.worker_name : ''}
+              onChange={e => {
+                if (e.target.value === '__custom__') {
+                  setCustomWorker(true);
+                  set('worker_name', '');
+                } else {
+                  set('worker_name', e.target.value);
+                }
+              }}
+              required={!form.worker_name}
+              style={{ flex: 1 }}
+            >
+              <option value="">{t('selectWorker')}</option>
+              {workers.map(w => (
+                <option key={w.id} value={w.name}>{w.name}{w.role ? ` — ${w.role}` : ''}</option>
+              ))}
+              <option value="__custom__">+ Type name…</option>
+            </select>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="form-input" value={form.worker_name}
+              onChange={e => set('worker_name', e.target.value)} required placeholder="John Doe"
+              style={{ flex: 1 }} />
+            {workers.length > 0 && (
+              <button type="button" className="btn btn-ghost" onClick={() => setCustomWorker(false)}
+                style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
+                ← List
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="form-row">

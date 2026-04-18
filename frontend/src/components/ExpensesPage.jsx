@@ -1,40 +1,48 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useI18n } from '../i18n';
-import { getEntries, getProjects, getWorkers, createEntry, updateEntry, deleteEntry } from '../api/client';
-import EntryForm from '../components/EntryForm';
+import { getExpenses, getExpenseCategories, getProjects, getWorkers, createExpense, updateExpense, deleteExpense } from '../api/client';
+import ExpenseForm from '../components/ExpenseForm';
 import Modal from '../components/Modal';
 import Toast from '../components/Toast';
 
-const ClockIcon = () => (
+const ReceiptIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
+    <path d="M8 10h8"/><path d="M8 14h4"/>
   </svg>
 );
+
 const FilterIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
   </svg>
 );
 
-export default function EntriesPage() {
+export default function ExpensesPage() {
   const { t } = useI18n();
-  const [entries, setEntries] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [projects, setProjects] = useState([]);
   const [workers, setWorkers] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editEntry, setEditEntry] = useState(null);
+  const [editExp, setEditExp] = useState(null);
   const [toast, setToast] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({ worker_name: '', project_id: '', start_date: '', end_date: '' });
+  const [filters, setFilters] = useState({ worker_name: '', project_id: '', category: '', start_date: '', end_date: '' });
 
   const load = async () => {
     setLoading(true);
     try {
-      const [e, p, w] = await Promise.all([getEntries(filters), getProjects(), getWorkers()]);
-      setEntries(e);
+      const [exp, p, w, cats] = await Promise.all([
+        getExpenses(filters), getProjects(), getWorkers(), getExpenseCategories(),
+      ]);
+      setExpenses(exp);
       setProjects(p);
       setWorkers(w);
+      setCategories(cats.categories || []);
+      setStores(cats.stores || []);
     } catch {
       setToast({ msg: 'Failed to load', type: 'error' });
     }
@@ -43,74 +51,53 @@ export default function EntriesPage() {
 
   useEffect(() => { load(); }, [filters]);
 
-  const stats = useMemo(() => {
-    const totalHrs = entries.reduce((s, e) => s + e.hours, 0);
-    const totalOT = entries.reduce((s, e) => s + e.overtime, 0);
-    const workerCount = new Set(entries.map(e => e.worker_name)).size;
-    return { totalHrs, totalOT, workerCount };
-  }, [entries]);
+  const totalSpent = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
 
   const handleSave = async (data) => {
-    if (editEntry?.id) {
-      await updateEntry(editEntry.id, data);
-    } else {
-      await createEntry(data);
-    }
+    if (editExp?.id) await updateExpense(editExp.id, data);
+    else await createExpense(data);
     setModalOpen(false);
-    setEditEntry(null);
+    setEditExp(null);
     setToast({ msg: t('save') + ' ✓', type: 'success' });
     load();
   };
 
   const handleDelete = async (id) => {
-    await deleteEntry(id);
+    await deleteExpense(id);
     setModalOpen(false);
-    setEditEntry(null);
+    setEditExp(null);
     setToast({ msg: t('delete') + ' ✓', type: 'success' });
     load();
   };
-
-  const openEdit = (entry) => {
-    setEditEntry(entry);
-    setModalOpen(true);
-  };
-
-  const uniqueWorkers = useMemo(() => [...new Set(entries.map(e => e.worker_name))], [entries]);
 
   return (
     <div className="page">
       {toast && <Toast key={Date.now()} message={toast.msg} type={toast.type} />}
 
-      {/* Stats */}
-      <div className="stats-strip">
+      <div className="stats-strip" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <div className="stat-box">
-          <div className="stat-number">{stats.totalHrs.toFixed(1)}</div>
-          <div className="stat-label">{t('hours')}</div>
+          <div className="stat-number" style={{ color: '#EF4444' }}>${totalSpent.toFixed(2)}</div>
+          <div className="stat-label">{t('totalExpenses')}</div>
         </div>
         <div className="stat-box">
-          <div className="stat-number">{stats.totalOT.toFixed(1)}</div>
-          <div className="stat-label">{t('overtime')}</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-number">{stats.workerCount}</div>
-          <div className="stat-label">{t('workers')}</div>
+          <div className="stat-number">{expenses.length}</div>
+          <div className="stat-label">{t('entries')}</div>
         </div>
       </div>
 
-      {/* Filters */}
       <div className="filter-bar">
         <button className={`filter-chip ${showFilters ? 'active' : ''}`}
           onClick={() => setShowFilters(!showFilters)}>
           <FilterIcon /> {t('filters')}
         </button>
+        {filters.category && (
+          <span className="filter-chip active" onClick={() => setFilters(f => ({ ...f, category: '' }))}>
+            {filters.category} ×
+          </span>
+        )}
         {filters.worker_name && (
           <span className="filter-chip active" onClick={() => setFilters(f => ({ ...f, worker_name: '' }))}>
             {filters.worker_name} ×
-          </span>
-        )}
-        {filters.project_id && (
-          <span className="filter-chip active" onClick={() => setFilters(f => ({ ...f, project_id: '' }))}>
-            {projects.find(p => p.id === parseInt(filters.project_id))?.name} ×
           </span>
         )}
       </div>
@@ -119,11 +106,11 @@ export default function EntriesPage() {
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">{t('filterByWorker')}</label>
-              <select className="form-select" value={filters.worker_name}
-                onChange={e => setFilters(f => ({ ...f, worker_name: e.target.value }))}>
-                <option value="">{t('allWorkers')}</option>
-                {uniqueWorkers.map(w => <option key={w} value={w}>{w}</option>)}
+              <label className="form-label">{t('filterByCategory')}</label>
+              <select className="form-select" value={filters.category}
+                onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}>
+                <option value="">{t('allCategories')}</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="form-group">
@@ -150,58 +137,58 @@ export default function EntriesPage() {
         </div>
       )}
 
-      {/* Entries list */}
       {loading ? (
         <div className="empty-state"><p>{t('loadingData')}</p></div>
-      ) : entries.length === 0 ? (
+      ) : expenses.length === 0 ? (
         <div className="empty-state">
-          <ClockIcon />
-          <p>{t('noEntries')}</p>
+          <ReceiptIcon />
+          <p>{t('noExpenses')}</p>
         </div>
       ) : (
-        entries.map(entry => (
-          <div key={entry.id} className="card" onClick={() => openEdit(entry)} style={{ cursor: 'pointer' }}>
+        expenses.map(exp => (
+          <div key={exp.id} className="card" onClick={() => { setEditExp(exp); setModalOpen(true); }} style={{ cursor: 'pointer' }}>
             <div className="card-row">
               <div>
-                <div className="card-title">{entry.worker_name}</div>
-                <div className="card-subtitle">{entry.project.name}</div>
+                <div className="card-title">{exp.store || exp.category}</div>
+                <div className="card-subtitle">{exp.project.name} · {exp.worker_name}</div>
               </div>
-              <div className="card-value hours">{entry.hours}h</div>
+              <div className="card-value hours" style={{ color: '#EF4444' }}>${exp.amount.toFixed(2)}</div>
             </div>
             <div className="card-row" style={{ marginTop: 6 }}>
-              <span className="card-label">{entry.date}</span>
-              {entry.task_description && (
-                <span className="card-value" style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                  {entry.task_description}
-                </span>
-              )}
-              {entry.overtime > 0 && (
-                <span className="badge active" style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--accent)' }}>
-                  +{entry.overtime} OT
+              <span className="card-label">{exp.date}</span>
+              <span className="badge active" style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--accent)' }}>
+                {exp.category}
+              </span>
+              {exp.receipt_ref && (
+                <span className="card-value" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  #{exp.receipt_ref}
                 </span>
               )}
             </div>
+            {exp.description && (
+              <div style={{ marginTop: 6, fontSize: 13, color: 'var(--text-secondary)' }}>{exp.description}</div>
+            )}
           </div>
         ))
       )}
 
-      {/* FAB */}
-      <button className="fab" onClick={() => { setEditEntry(null); setModalOpen(true); }}>
+      <button className="fab" onClick={() => { setEditExp(null); setModalOpen(true); }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
       </button>
 
-      {/* Modal */}
-      <Modal open={modalOpen} title={editEntry ? t('editEntry') : t('addEntry')}
-        onClose={() => { setModalOpen(false); setEditEntry(null); }}>
-        <EntryForm
-          entry={editEntry}
+      <Modal open={modalOpen} title={editExp ? t('editExpense') : t('addExpense')}
+        onClose={() => { setModalOpen(false); setEditExp(null); }}>
+        <ExpenseForm
+          expense={editExp}
           projects={projects}
           workers={workers}
+          categories={categories}
+          stores={stores}
           onSave={handleSave}
           onDelete={handleDelete}
-          onCancel={() => { setModalOpen(false); setEditEntry(null); }}
+          onCancel={() => { setModalOpen(false); setEditExp(null); }}
         />
       </Modal>
     </div>

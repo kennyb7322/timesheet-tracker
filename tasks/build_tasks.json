@@ -1,32 +1,32 @@
 [
   {
-    "id": "1",
     "content": "[setup] Initialize React+Vite frontend and FastAPI backend with project structure",
-    "status": "in_progress"
+    "id": "1",
+    "status": "completed"
   },
   {
-    "id": "2",
     "content": "[backend] Build FastAPI API with SQLite DB, timesheet CRUD, Excel export/import",
-    "status": "pending"
+    "id": "2",
+    "status": "completed"
   },
   {
-    "id": "3",
     "content": "[frontend] Build modular React components: TimeEntry, ProjectList, TimesheetView",
-    "status": "pending"
+    "id": "3",
+    "status": "completed"
   },
   {
-    "id": "4",
     "content": "[i18n] Add English/Spanish toggle with translation system",
-    "status": "pending"
+    "id": "4",
+    "status": "completed"
   },
   {
-    "id": "5",
     "content": "[pwa] Configure PWA manifest, service worker, mobile-responsive layout",
-    "status": "pending"
+    "id": "5",
+    "status": "completed"
   },
   {
-    "id": "6",
     "content": "[deploy] Create start.sh, test full stack, verify mobile UX",
-    "status": "pending"
+    "id": "6",
+    "status": "completed"
   }
 ]

@@ -8,16 +8,32 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from backend.database import get_db
-from backend.models import TimeEntry, Project
+from backend.models import TimeEntry, Project, Expense
 
 router = APIRouter(prefix="/api/excel", tags=["excel"])
 
 HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
 HEADER_FILL = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+EXPENSE_FILL = PatternFill(start_color="D97706", end_color="D97706", fill_type="solid")
 THIN_BORDER = Border(
     left=Side(style="thin"), right=Side(style="thin"),
     top=Side(style="thin"), bottom=Side(style="thin"),
 )
+
+
+def _style_headers(ws, headers, fill=HEADER_FILL):
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = HEADER_FONT
+        cell.fill = fill
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = THIN_BORDER
+
+
+def _auto_width(ws):
+    for col in ws.columns:
+        max_len = max((len(str(c.value or "")) for c in col), default=10)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 40)
 
 
 @router.get("/export")
@@ -28,6 +44,7 @@ def export_excel(
     end_date: date = None,
     db: Session = Depends(get_db),
 ):
+    # --- Timesheet sheet ---
     q = db.query(TimeEntry).options(joinedload(TimeEntry.project))
     if worker_name:
         q = q.filter(TimeEntry.worker_name == worker_name)
@@ -43,14 +60,7 @@ def export_excel(
     ws = wb.active
     ws.title = "Timesheet"
 
-    headers = ["Date", "Worker", "Project", "Location", "Hours", "Overtime", "Task", "Notes"]
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=h)
-        cell.font = HEADER_FONT
-        cell.fill = HEADER_FILL
-        cell.alignment = Alignment(horizontal="center")
-        cell.border = THIN_BORDER
-
+    _style_headers(ws, ["Date", "Worker", "Project", "Location", "Hours", "Overtime", "Task", "Notes"])
     for row_idx, e in enumerate(entries, 2):
         vals = [
             e.date.isoformat(), e.worker_name, e.project.name,
@@ -60,11 +70,32 @@ def export_excel(
         for col, v in enumerate(vals, 1):
             cell = ws.cell(row=row_idx, column=col, value=v)
             cell.border = THIN_BORDER
+    _auto_width(ws)
 
-    # Auto-width
-    for col in ws.columns:
-        max_len = max((len(str(c.value or "")) for c in col), default=10)
-        ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 40)
+    # --- Expenses sheet ---
+    eq = db.query(Expense).options(joinedload(Expense.project))
+    if worker_name:
+        eq = eq.filter(Expense.worker_name == worker_name)
+    if project_id:
+        eq = eq.filter(Expense.project_id == project_id)
+    if start_date:
+        eq = eq.filter(Expense.date >= start_date)
+    if end_date:
+        eq = eq.filter(Expense.date <= end_date)
+    expenses = eq.order_by(Expense.date.desc()).all()
+
+    ws2 = wb.create_sheet("Expenses")
+    _style_headers(ws2, ["Date", "Worker", "Project", "Category", "Store", "Amount", "Description", "Receipt #", "Notes"], EXPENSE_FILL)
+    for row_idx, ex in enumerate(expenses, 2):
+        vals = [
+            ex.date.isoformat(), ex.worker_name, ex.project.name,
+            ex.category, ex.store, ex.amount,
+            ex.description, ex.receipt_ref, ex.notes,
+        ]
+        for col, v in enumerate(vals, 1):
+            cell = ws2.cell(row=row_idx, column=col, value=v)
+            cell.border = THIN_BORDER
+    _auto_width(ws2)
 
     buf = io.BytesIO()
     wb.save(buf)

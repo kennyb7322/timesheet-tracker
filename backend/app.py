@@ -9,6 +9,8 @@ from backend.database import init_db
 from backend.routes_projects import router as projects_router
 from backend.routes_entries import router as entries_router
 from backend.routes_excel import router as excel_router
+from backend.routes_workers import router as workers_router
+from backend.routes_expenses import router as expenses_router
 
 app = FastAPI(title="Timesheet Tracker API")
 
@@ -22,6 +24,8 @@ app.add_middleware(
 app.include_router(projects_router)
 app.include_router(entries_router)
 app.include_router(excel_router)
+app.include_router(workers_router)
+app.include_router(expenses_router)
 
 
 @app.on_event("startup")
