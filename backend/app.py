@@ -28,6 +28,16 @@ app.include_router(workers_router)
 app.include_router(expenses_router)
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/api/health")
+def api_health():
+    return {"status": "ok"}
+
+
 @app.on_event("startup")
 def on_startup():
     init_db()
