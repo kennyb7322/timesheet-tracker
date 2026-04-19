@@ -10,16 +10,13 @@ RUN npm run build
 FROM python:3.12-slim
 WORKDIR /app
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Install Python dependencies directly (no uv needed in prod)
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir fastapi uvicorn sqlalchemy aiosqlite openpyxl python-multipart
 
-# Copy Python project files
-COPY pyproject.toml uv.lock ./
+# Copy app code
 COPY backend/ ./backend/
 COPY main.py ./
-
-# Install Python dependencies
-RUN uv sync --frozen --no-dev
 
 # Copy built frontend
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
@@ -27,8 +24,7 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 # Create data directory for SQLite
 RUN mkdir -p /app/data
 
-# Railway uses PORT env var
 ENV PYTHONDONTWRITEBYTECODE=1
-EXPOSE 8080
 
-CMD uv run uvicorn backend.app:app --host 0.0.0.0 --port ${PORT:-8080}
+# Railway injects PORT env var at runtime
+CMD uvicorn backend.app:app --host 0.0.0.0 --port ${PORT:-8080}
