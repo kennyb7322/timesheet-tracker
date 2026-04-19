@@ -21,5 +21,9 @@ if [ ! -d "frontend/dist" ]; then
     cd frontend && npm install && npm run build && cd ..
 fi
 
+# Pre-warm imports so server starts fast
+echo "Warming up..."
+uv run python -c "from backend.app import app; print('Ready')"
+
 echo "Starting Timesheet Tracker on port $PORT..."
-exec env PYTHONDONTWRITEBYTECODE=1 uv run uvicorn backend.app:app --host 0.0.0.0 --port "$PORT"
+exec uv run uvicorn backend.app:app --host 0.0.0.0 --port "$PORT"
