@@ -1,132 +1,169 @@
-"""Pydantic schemas for request/response validation."""
-from pydantic import BaseModel
-from datetime import date
-from typing import Optional
+"""Pydantic schemas for UCS Rides."""
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import datetime
 
 
-# --- Worker schemas ---
-class WorkerCreate(BaseModel):
+# ── Auth ─────────────────────────────────────────────────────────────────
+class SignupRequest(BaseModel):
     name: str
-    role: str = ""
+    email: str
     phone: str = ""
+    password: str = Field(min_length=6)
+    role: str = "rider"  # rider | driver | both
 
 
-class WorkerUpdate(BaseModel):
-    name: Optional[str] = None
-    role: Optional[str] = None
-    phone: Optional[str] = None
-    is_active: Optional[int] = None
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
 
-class WorkerOut(BaseModel):
+class UserOut(BaseModel):
     id: int
     name: str
-    role: str
+    email: str
     phone: str
-    is_active: int
+    role: str
+    default_payment_method: str
+    rating: float
+    avatar_color: str
+    is_online: bool
+    hourly_rate: float
 
     class Config:
         from_attributes = True
 
 
-# --- Project schemas ---
-class ProjectCreate(BaseModel):
-    name: str
-    description: str = ""
-    location: str = ""
+class AuthResponse(BaseModel):
+    token: str
+    user: UserOut
 
 
-class ProjectUpdate(BaseModel):
+class UserUpdate(BaseModel):
     name: Optional[str] = None
-    description: Optional[str] = None
-    location: Optional[str] = None
-    is_active: Optional[int] = None
+    phone: Optional[str] = None
+    default_payment_method: Optional[str] = None
+    hourly_rate: Optional[float] = None
+    role: Optional[str] = None
 
 
-class ProjectOut(BaseModel):
+# ── Vehicles ─────────────────────────────────────────────────────────────
+class VehicleCreate(BaseModel):
+    make: str = ""
+    model: str = ""
+    year: int = 2020
+    color: str = ""
+    plate: str = ""
+    seats: int = 4
+    tier: str = "standard"
+
+
+class VehicleOut(BaseModel):
+    id: int
+    driver_id: int
+    make: str
+    model: str
+    year: int
+    color: str
+    plate: str
+    seats: int
+    tier: str
+    is_default: bool
+
+    class Config:
+        from_attributes = True
+
+
+# ── Rides ────────────────────────────────────────────────────────────────
+class Stop(BaseModel):
+    address: str
+    lat: float = 0.0
+    lng: float = 0.0
+
+
+class QuoteRequest(BaseModel):
+    mode: str = "dropoff"          # dropoff | hourly
+    tier: str = "standard"
+    distance_miles: float = 0.0
+    duration_hours: float = 0.0
+    stops: int = 0
+    hourly_rate: float = 45.0
+
+
+class RideCreate(BaseModel):
+    mode: str = "dropoff"
+    tier: str = "standard"
+    pickup_address: str
+    pickup_lat: float = 37.7749
+    pickup_lng: float = -122.4194
+    dropoff_address: str = ""
+    dropoff_lat: float = 0.0
+    dropoff_lng: float = 0.0
+    stops: List[Stop] = []
+    preferences: List[str] = []
+    scheduled_time: str = ""
+    duration_hours: float = 0.0
+    distance_miles: float = 0.0
+    passengers: int = 1
+    notes: str = ""
+    payment_method: str = "stripe"
+
+
+class DriverMini(BaseModel):
     id: int
     name: str
-    description: str
-    location: str
-    is_active: int
+    rating: float
+    avatar_color: str
+    current_lat: float
+    current_lng: float
+    hourly_rate: float
+    vehicle: Optional[VehicleOut] = None
+
+
+class RideOut(BaseModel):
+    id: int
+    rider_id: int
+    driver_id: Optional[int]
+    mode: str
+    tier: str
+    pickup_address: str
+    pickup_lat: float
+    pickup_lng: float
+    dropoff_address: str
+    dropoff_lat: float
+    dropoff_lng: float
+    stops: List[Stop] = []
+    preferences: List[str] = []
+    scheduled_time: str
+    duration_hours: float
+    distance_miles: float
+    passengers: int
+    notes: str
+    status: str
+    fare_estimate: float
+    final_fare: float
+    payment_method: str
+    payment_status: str
+    created_at: datetime
+    driver: Optional[DriverMini] = None
+    rider: Optional[UserOut] = None
 
     class Config:
         from_attributes = True
 
 
-# --- TimeEntry schemas ---
-class TimeEntryCreate(BaseModel):
-    worker_name: str
-    date: date
-    hours: float
-    project_id: int
-    task_description: str = ""
-    overtime: float = 0.0
-    notes: str = ""
+class StatusUpdate(BaseModel):
+    status: str
 
 
-class TimeEntryUpdate(BaseModel):
-    worker_name: Optional[str] = None
-    date: Optional[date] = None
-    hours: Optional[float] = None
-    project_id: Optional[int] = None
-    task_description: Optional[str] = None
-    overtime: Optional[float] = None
-    notes: Optional[str] = None
-
-
-class TimeEntryOut(BaseModel):
+class PaymentOut(BaseModel):
     id: int
-    worker_name: str
-    date: date
-    hours: float
-    project_id: int
-    task_description: str
-    overtime: float
-    notes: str
-    project: ProjectOut
-
-    class Config:
-        from_attributes = True
-
-
-# --- Expense schemas ---
-class ExpenseCreate(BaseModel):
-    worker_name: str
-    date: date
-    project_id: int
+    ride_id: int
     amount: float
-    category: str = "Materials"
-    store: str = ""
-    description: str = ""
-    receipt_ref: str = ""
-    notes: str = ""
-
-
-class ExpenseUpdate(BaseModel):
-    worker_name: Optional[str] = None
-    date: Optional[date] = None
-    project_id: Optional[int] = None
-    amount: Optional[float] = None
-    category: Optional[str] = None
-    store: Optional[str] = None
-    description: Optional[str] = None
-    receipt_ref: Optional[str] = None
-    notes: Optional[str] = None
-
-
-class ExpenseOut(BaseModel):
-    id: int
-    worker_name: str
-    date: date
-    project_id: int
-    amount: float
-    category: str
-    store: str
-    description: str
-    receipt_ref: str
-    notes: str
-    project: ProjectOut
+    method: str
+    status: str
+    reference: str
+    created_at: datetime
 
     class Config:
         from_attributes = True

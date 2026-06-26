@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Runtime SQLite database (recreated + seeded on startup)
+data/*.db

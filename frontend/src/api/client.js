@@ -1,102 +1,60 @@
 const BASE = '/api';
+const TOKEN_KEY = 'ucs_token';
+
+export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const setToken = (t) => t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
 
 async function request(path, opts = {}) {
+  const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...opts.headers,
+    },
     ...opts,
   });
+  if (res.status === 401) {
+    setToken(null);
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || 'Request failed');
   }
+  if (res.status === 204) return null;
   return res.json();
 }
 
-// Workers
-export const getWorkers = (activeOnly = true) =>
-  request(`/workers/?active_only=${activeOnly}`);
+// ── Auth ──────────────────────────────────────────────
+export const signup = (data) => request('/auth/signup', { method: 'POST', body: JSON.stringify(data) });
+export const login = (data) => request('/auth/login', { method: 'POST', body: JSON.stringify(data) });
+export const fetchMe = () => request('/auth/me');
+export const updateMe = (data) => request('/auth/me', { method: 'PUT', body: JSON.stringify(data) });
 
-export const createWorker = (data) =>
-  request('/workers/', { method: 'POST', body: JSON.stringify(data) });
-
-export const updateWorker = (id, data) =>
-  request(`/workers/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-
-export const deleteWorker = (id) =>
-  request(`/workers/${id}`, { method: 'DELETE' });
-
-// Projects
-export const getProjects = (activeOnly = true) =>
-  request(`/projects/?active_only=${activeOnly}`);
-
-export const createProject = (data) =>
-  request('/projects/', { method: 'POST', body: JSON.stringify(data) });
-
-export const updateProject = (id, data) =>
-  request(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-
-export const deleteProject = (id) =>
-  request(`/projects/${id}`, { method: 'DELETE' });
-
-// Entries
-export const getEntries = (params = {}) => {
-  const qs = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') qs.set(k, v);
-  });
-  return request(`/entries/?${qs}`);
+// ── Rides ─────────────────────────────────────────────
+export const quote = (data) => request('/rides/quote', { method: 'POST', body: JSON.stringify(data) });
+export const nearbyDrivers = (lat, lng, tier) => {
+  const qs = new URLSearchParams({ lat, lng });
+  if (tier) qs.set('tier', tier);
+  return request(`/rides/nearby?${qs}`);
 };
+export const createRide = (data) => request('/rides/', { method: 'POST', body: JSON.stringify(data) });
+export const myRides = (status) => request(`/rides/${status ? `?status=${status}` : ''}`);
+export const getRide = (id) => request(`/rides/${id}`);
+export const cancelRide = (id) => request(`/rides/${id}/cancel`, { method: 'POST' });
+export const payRide = (id) => request(`/rides/${id}/pay`, { method: 'POST' });
 
-export const createEntry = (data) =>
-  request('/entries/', { method: 'POST', body: JSON.stringify(data) });
+// ── Driver ────────────────────────────────────────────
+export const availableRides = () => request('/rides/available');
+export const drivingRides = () => request('/rides/driving');
+export const acceptRide = (id) => request(`/rides/${id}/accept`, { method: 'POST' });
+export const setRideStatus = (id, status) => request(`/rides/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) });
+export const setOnline = (is_online, lat, lng) => request('/drivers/online', { method: 'POST', body: JSON.stringify({ is_online, lat, lng }) });
+export const myVehicles = () => request('/drivers/vehicles');
+export const addVehicle = (data) => request('/drivers/vehicles', { method: 'POST', body: JSON.stringify(data) });
+export const deleteVehicle = (id) => request(`/drivers/vehicles/${id}`, { method: 'DELETE' });
+export const earnings = () => request('/drivers/earnings');
 
-export const updateEntry = (id, data) =>
-  request(`/entries/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-
-export const deleteEntry = (id) =>
-  request(`/entries/${id}`, { method: 'DELETE' });
-
-// Expenses
-export const getExpenseCategories = () => request('/expenses/categories');
-
-export const getExpenses = (params = {}) => {
-  const qs = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') qs.set(k, v);
-  });
-  return request(`/expenses/?${qs}`);
-};
-
-export const createExpense = (data) =>
-  request('/expenses/', { method: 'POST', body: JSON.stringify(data) });
-
-export const updateExpense = (id, data) =>
-  request(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-
-export const deleteExpense = (id) =>
-  request(`/expenses/${id}`, { method: 'DELETE' });
-
-// Excel
-export const exportExcel = async (params = {}) => {
-  const qs = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') qs.set(k, v);
-  });
-  const res = await fetch(`${BASE}/excel/export?${qs}`);
-  if (!res.ok) throw new Error('Export failed');
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'timesheet_export.xlsx';
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-export const importExcel = async (file) => {
-  const form = new FormData();
-  form.append('file', file);
-  const res = await fetch(`${BASE}/excel/import`, { method: 'POST', body: form });
-  if (!res.ok) throw new Error('Import failed');
-  return res.json();
-};
+// ── Payments ──────────────────────────────────────────
+export const paymentMethods = () => request('/payments/methods');
+export const paymentHistory = () => request('/payments/history');

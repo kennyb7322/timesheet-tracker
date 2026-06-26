@@ -1,4 +1,4 @@
-"""FastAPI application — Timesheet Tracker backend."""
+"""FastAPI application — UCS Rides backend (Uber/Lyft-style rideshare + time-hire)."""
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,13 +6,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from backend.database import init_db
-from backend.routes_projects import router as projects_router
-from backend.routes_entries import router as entries_router
-from backend.routes_excel import router as excel_router
-from backend.routes_workers import router as workers_router
-from backend.routes_expenses import router as expenses_router
+from backend.routes_auth import router as auth_router
+from backend.routes_rides import router as rides_router
+from backend.routes_drivers import router as drivers_router
+from backend.routes_payments import router as payments_router
 
-app = FastAPI(title="Timesheet Tracker API")
+app = FastAPI(title="UCS Rides API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,11 +20,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(projects_router)
-app.include_router(entries_router)
-app.include_router(excel_router)
-app.include_router(workers_router)
-app.include_router(expenses_router)
+app.include_router(auth_router)
+app.include_router(rides_router)
+app.include_router(drivers_router)
+app.include_router(payments_router)
 
 
 @app.get("/health")
@@ -35,7 +33,7 @@ def health():
 
 @app.get("/api/health")
 def api_health():
-    return {"status": "ok"}
+    return {"status": "ok", "service": "ucs-rides"}
 
 
 @app.on_event("startup")

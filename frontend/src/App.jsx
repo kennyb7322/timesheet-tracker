@@ -1,124 +1,96 @@
-import { useState } from 'react';
-import { I18nProvider, useI18n } from './i18n';
-import EntriesPage from './components/EntriesPage';
-import ProjectsPage from './components/ProjectsPage';
-import WorkersPage from './components/WorkersPage';
-import ExpensesPage from './components/ExpensesPage';
-import ExportPage from './components/ExportPage';
+import { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './auth';
+import AuthPage from './components/AuthPage';
+import RiderHome from './components/RiderHome';
+import ActivityPage from './components/ActivityPage';
+import PaymentsPage from './components/PaymentsPage';
+import AccountPage from './components/AccountPage';
+import DriverDashboard from './components/DriverDashboard';
+import DriverEarnings from './components/DriverEarnings';
 import Toast from './components/Toast';
+import { CarIcon, ListIcon, WalletIcon, UserIcon, SteeringIcon, ShareIcon } from './icons';
 
-const ClockIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-  </svg>
-);
-const FolderIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-  </svg>
-);
-const UserIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-  </svg>
-);
-const ReceiptIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
-    <path d="M8 10h8"/><path d="M8 14h4"/>
-  </svg>
-);
-const FileIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-  </svg>
-);
-const ShareIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-  </svg>
-);
+const RIDER_TABS = [
+  { key: 'ride', label: 'Ride', Icon: CarIcon, Page: RiderHome },
+  { key: 'trips', label: 'Trips', Icon: ListIcon, Page: ActivityPage },
+  { key: 'wallet', label: 'Wallet', Icon: WalletIcon, Page: PaymentsPage },
+  { key: 'account', label: 'Account', Icon: UserIcon, Page: AccountPage },
+];
+const DRIVER_TABS = [
+  { key: 'drive', label: 'Drive', Icon: SteeringIcon, Page: DriverDashboard },
+  { key: 'earnings', label: 'Earnings', Icon: WalletIcon, Page: DriverEarnings },
+  { key: 'account', label: 'Account', Icon: UserIcon, Page: AccountPage },
+];
 
-function AppShell() {
-  const { t, lang, toggleLang } = useI18n();
-  const [tab, setTab] = useState('entries');
+function Shell() {
+  const { user } = useAuth();
+  const canDrive = user.role === 'driver' || user.role === 'both';
+  const canRide = user.role === 'rider' || user.role === 'both';
+
+  const [mode, setMode] = useState(canRide ? 'rider' : 'driver');
+  const tabs = mode === 'driver' ? DRIVER_TABS : RIDER_TABS;
+  const [tab, setTab] = useState(tabs[0].key);
   const [toast, setToast] = useState(null);
 
-  const pages = {
-    entries: EntriesPage,
-    projects: ProjectsPage,
-    workers: WorkersPage,
-    expenses: ExpensesPage,
-    export: ExportPage,
-  };
-  const Page = pages[tab];
+  const showToast = (msg, type = 'success') => setToast({ msg, type, k: Date.now() });
 
-  const handleShare = async () => {
-    const url = window.location.href;
-    const text = `${t('shareMessage')} ${url}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: t('appTitle'), text, url });
-      } catch { /* cancelled */ }
-    } else {
-      await navigator.clipboard.writeText(url);
-      setToast({ msg: t('copied'), type: 'success' });
-    }
+  // Keep the active tab valid when switching modes.
+  useEffect(() => { setTab((mode === 'driver' ? DRIVER_TABS : RIDER_TABS)[0].key); }, [mode]);
+
+  const Page = tabs.find((t) => t.key === tab)?.Page || tabs[0].Page;
+
+  const share = async () => {
+    const url = window.location.origin;
+    try {
+      if (navigator.share) await navigator.share({ title: 'UCS Rides', text: 'Ride or hire a driver by the hour with UCS Rides', url });
+      else { await navigator.clipboard.writeText(url); showToast('Link copied', 'info'); }
+    } catch { /* cancelled */ }
   };
+
+  const toggleMode = () => setMode((m) => (m === 'rider' ? 'driver' : 'rider'));
 
   return (
     <div className="app-shell">
-      {toast && <Toast key={Date.now()} message={toast.msg} type={toast.type} />}
+      {toast && <Toast key={toast.k} message={toast.msg} type={toast.type} />}
 
       <header className="app-header">
         <div className="header-brand">
-          <div className="header-logo">TS</div>
-          <h1 className="header-title">{t('appTitle')}</h1>
+          <div className="header-logo">UC</div>
+          <div className="header-title">UCS Rides<small>{mode === 'driver' ? 'Driver' : 'by UC Solutions'}</small></div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="lang-toggle" onClick={handleShare} title={t('shareApp')}>
-            <ShareIcon />
-          </button>
-          <button className="lang-toggle" onClick={toggleLang}>
-            <span className="flag">{lang === 'en' ? '🇺🇸' : '🇲🇽'}</span>
-            {lang === 'en' ? 'EN' : 'ES'}
-          </button>
+        <div className="flex gap8">
+          {canRide && canDrive && (
+            <button className="btn-sm btn-ghost" onClick={toggleMode} style={{ fontWeight: 700 }}>
+              {mode === 'rider' ? 'Drive' : 'Ride'}
+            </button>
+          )}
+          <button className="icon-btn" onClick={share} aria-label="Share"><ShareIcon /></button>
         </div>
       </header>
 
-      <Page />
-
-      {/* Footer credit */}
-      <div className="app-footer">
-        {t('createdBy')}: Dr. Ken Barnes
-      </div>
+      <Page toast={showToast} />
 
       <nav className="bottom-nav">
-        <button className={`nav-item ${tab === 'entries' ? 'active' : ''}`} onClick={() => setTab('entries')}>
-          <ClockIcon /> {t('navEntries')}
-        </button>
-        <button className={`nav-item ${tab === 'expenses' ? 'active' : ''}`} onClick={() => setTab('expenses')}>
-          <ReceiptIcon /> {t('navExpenses')}
-        </button>
-        <button className={`nav-item ${tab === 'projects' ? 'active' : ''}`} onClick={() => setTab('projects')}>
-          <FolderIcon /> {t('navProjects')}
-        </button>
-        <button className={`nav-item ${tab === 'workers' ? 'active' : ''}`} onClick={() => setTab('workers')}>
-          <UserIcon /> {t('navWorkers')}
-        </button>
-        <button className={`nav-item ${tab === 'export' ? 'active' : ''}`} onClick={() => setTab('export')}>
-          <FileIcon /> {t('navExport')}
-        </button>
+        {tabs.map(({ key, label, Icon }) => (
+          <button key={key} className={`nav-item ${tab === key ? 'active' : ''}`} onClick={() => setTab(key)}>
+            <Icon /><span>{label}</span>
+          </button>
+        ))}
       </nav>
     </div>
   );
 }
 
+function Gate() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="center-load" style={{ minHeight: '100dvh' }}><span className="spinner" /></div>;
+  return user ? <Shell /> : <AuthPage />;
+}
+
 export default function App() {
   return (
-    <I18nProvider>
-      <AppShell />
-    </I18nProvider>
+    <AuthProvider>
+      <Gate />
+    </AuthProvider>
   );
 }

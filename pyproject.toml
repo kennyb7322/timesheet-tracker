@@ -1,7 +1,7 @@
 [project]
-name = "timesheet-tracker-mobile"
+name = "ucs-rides"
 version = "0.1.0"
-description = "Add your description here"
+description = "UCS Rides — mobile rideshare + hire-by-the-hour app by UC Solutions"
 requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.22.1",

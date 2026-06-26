@@ -23,7 +23,17 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Capitalized identifiers are React components; when used only in JSX,
+      // base ESLint can't see the usage, so ignore them as vars and args.
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]' }],
+      // Fetch-on-mount effects legitimately setState after an await; this rule
+      // targets synchronous cascades, which we don't do.
+      'react-hooks/set-state-in-effect': 'off',
     },
+  },
+  {
+    // Config files run in Node, not the browser.
+    files: ['vite.config.js', 'eslint.config.js'],
+    languageOptions: { globals: globals.node },
   },
 ])
